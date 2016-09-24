@@ -63,6 +63,7 @@ master.update()
 
 ## Subproblem and subproblem decision variables
 sub = Model("facility")
+sub.params.logtoconsole=0  ## turns off display of Gurobi output when solving subproblems
 
 # Transportation decision variables: how much to transport from
 # a plant p to a customer w
@@ -77,8 +78,8 @@ for w in Cset:
     unmet[w] = sub.addVar(obj=penalties[w],name="Unmet%s" % w)
 
 # The objective is to minimize the total fixed and variable costs
-sub.modelSense = GRB.MINIMIZE 
-sub.update() 
+sub.modelSense = GRB.MINIMIZE
+sub.update()
 
 # Subproblem production constraints
 # For now just set right-hand side to capacity[p] -- it will be reset during algorithm
@@ -106,10 +107,10 @@ while cutfound:
     print '================ Iteration ', iter, ' ==================='
     iter = iter+1
     # Solve current master problem
-    cutfound = 0 
+    cutfound = 0
     master.update()
-    master.optimize() 
- 
+    master.optimize()
+
     print 'current optimal solution:'
     for p in Fset:
         print 'fopen[', p, ']=', fopen[p].x
@@ -123,26 +124,24 @@ while cutfound:
             capcon[p].RHS = fopen[p].x*capacity[p]
         for w in Cset:
 		      demcon[w].RHS = demand[w,k]
-        sub.update()	
+        sub.update()
         sub.optimize()
 
-        # Display info, compute Benders cut, display, add to master 
+        # Display info, compute Benders cut, display, add to master
         print 'sub[', k, '] objval = ', sub.objVal
         for w in Cset:
             print 'unmet[', w, ']=', unmet[w].x
             #for p in facil:
             #    print transport[w][p].x
         if sub.objVal > theta[k].x + 0.000001:  ### violation tolerance
-            xcoef = {} 
+            xcoef = {}
             for p in Fset:
                 xcoef[p] = capacity[p]*capcon[p].Pi
                 print 'xcoef[',p,']=', xcoef[p]
-                print
-            rhs = 0.0 
+            rhs = 0.0
             for w in Cset:
                 rhs += demand[w,k]*demcon[w].Pi
             print 'rhs = ', rhs
             master.addConstr(theta[k] - quicksum(xcoef[p]*fopen[p] for p in Fset) >= rhs)
-            cutfound = 1 
-
+            cutfound = 1
 
