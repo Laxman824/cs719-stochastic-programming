@@ -8,8 +8,8 @@ from gurobipy import *
 # import os
 # os.chdir("/Users/shenzhenyuan/PycharmProjects/cs719/Homework/hw01")
 
-#dfile = open('nd1041015.pdat','r')
-dfile = open('nd1510203000.pdat','r')
+dfile = open('nd1041015.pdat','r')
+# dfile = open('nd1510203000.pdat','r')
 
 Fset = cPickle.load(dfile)  # set of facilities (list of strings)
 Hset = cPickle.load(dfile)  # set of warehouses (list of strings)
@@ -113,24 +113,22 @@ for h in Hset:
 m.update()
 
 ''' Solve '''
+print('-------------------------- Extensive Form  ------------------------------')
 m.optimize()
 
 if m.status == GRB.Status.OPTIMAL:
-    print('-------------------------- Extensive Form  ------------------------------')
+
     print('\nEXPECTED COST : %g' % m.objVal)
     print('SOLUTION:')
-    '''
-    for k in Sset:
-        print k
-        for arc in AllArcs:
-            print('    [%s -> %s] (Transport, Current, Expanded) = (%g, %g, %g)'
-                  % (arc[0], arc[1],
-                     transport[arc[0], arc[1], Sset[0]].x,
-                     arcExpAmount[arc[0], arc[1]].x,
-                     curArcCap[arc]))
-    '''
+    for arc in AllArcs:
+        print('    [%s -> %s] (Transport, Current, Expanded) = (%g, %g, %g)'
+              % (arc[0], arc[1],
+                 transport[arc[0], arc[1], Sset[0]].x,
+                 arcExpAmount[arc[0], arc[1]].x,
+                 curArcCap[arc]))
 
-print('AVERAGE UNMET DEMAND:')
+
+print('  AVERAGE UNMET DEMAND:')
 for c in Cset:
     avgunmet = quicksum(unmet[c,s].x for s in Sset)/nscen
     print('   Customer %s: %g' % (c, avgunmet.getValue()))
@@ -139,6 +137,7 @@ for c in Cset:
 ''' ================================  Model of Bender Decomposition ================================='''
 # Master problem and Value function decision variables
 master = Model("master")
+master.params.logtoconsole=0
 
 arcExpAmount_mp = {}
 for arc in AllArcs:
@@ -204,9 +203,13 @@ sub.update()
 ''' Begin the cutting plane loop '''
 cutfound = 1  ## keep track if any violated cuts were found
 iter = 1
+lb = 0
+ub = float("inf")
+nCuts = 0
+print('-------------------------- Bender Decomposition ------------------------------')
 while cutfound:
 
-    print '================ Iteration ', iter, ' ==================='
+    print '--- Iteration ', iter, ' ---'
     iter = iter+1
     # Solve current master problem
     cutfound = 0
@@ -219,12 +222,14 @@ while cutfound:
     #     print 'x[', arc[0], ' ', arc[1], ']=', arcExpAmount_mp[arc].x
     # for k in Sset:
     #     print 'theta[', k, ']=', theta[k].x
-    print 'objval = ', master.objVal
+    # print 'objval = ', master.objVal
+    lb = master.objVal
 
 	 # Fix the right-hand side in subproblem constraints according to each scenario and master solution, then solve
     for arc in AllArcs:
         capcon[arc].RHS = curArcCap[arc] + arcExpAmount_mp[arc].x # Not arcExpAmount_mp[arc]
 
+    Q = {}
     for k in Sset:
         for c in Cset:
             demcon[c].RHS = demScens[(c, k)]
@@ -256,4 +261,12 @@ while cutfound:
 
             # print 'rhs = ', rhs
             master.addConstr(theta[k] - quicksum(xcoef[arc] * arcExpAmount_mp[arc] for arc in AllArcs) >= rhs)
+            nCuts += 1
             cutfound = 1
+        Q[k] = sub.objVal
+
+    ub = quicksum(arcExpCost[arc] * arcExpAmount_mp[arc].x for arc in AllArcs).getValue() \
+         + quicksum(1.0/nscen * Q[k] for k in Sset).getValue()
+    print "    [lowerBound, upperBound] = [%f, %f],  nCut = %d" % (lb, ub, nCuts)
+
+print('\nEXPECTED COST : %g' % master.objVal)
