@@ -17,8 +17,8 @@ from gurobipy import *
 # import os
 # os.chdir("/Users/shenzhenyuan/PycharmProjects/cs719/Homework/hw01")
 
-dfile = open('nd1041015.pdat','r')
-# dfile = open('nd1510203000.pdat','r')
+# dfile = open('nd1041015.pdat','r')
+dfile = open('nd1510203000.pdat','r')
 
 Fset = cPickle.load(dfile)  # set of facilities (list of strings)
 Hset = cPickle.load(dfile)  # set of warehouses (list of strings)
@@ -125,19 +125,21 @@ m.optimize()
 if m.status == GRB.Status.OPTIMAL:
 
     print('EXPECTED COST : %g' % m.objVal)
-    print('SOLUTION:')
-    for arc in AllArcs:
-        print('    [%s -> %s] (Transport, Current, Expanded) = (%g, %g, %g)'
-              % (arc[0], arc[1],
-                 transport[arc[0], arc[1], Sset[0]].x,
-                 arcExpAmount[arc[0], arc[1]].x,
-                 curArcCap[arc]))
-
-
-print('  AVERAGE UNMET DEMAND:')
-for c in Cset:
-    avgunmet = quicksum(unmet[c,s].x for s in Sset)/nscen
-    print('   Customer %s: %g' % (c, avgunmet.getValue()))
+    # print('SOLUTION:')
+    # for k in Sset:
+    #     print('  Senario: %s' % k)
+    #     for arc in AllArcs:
+    #         print('    [%s -> %s] (Transport, Current, Expanded) = (%g, %g, %g)'
+    #               % (arc[0], arc[1],
+    #                  transport[arc[0], arc[1], k].x,
+    #                  arcExpAmount[arc[0], arc[1]].x,
+    #                  curArcCap[arc]))
+    #
+    #
+    # print('  AVERAGE UNMET DEMAND:')
+    # for c in Cset:
+    #     avgunmet = quicksum(unmet[c,s].x for s in Sset)/nscen
+    #     print('   Customer %s: %g' % (c, avgunmet.getValue()))
 
 spObjValue = m.objVal
 
