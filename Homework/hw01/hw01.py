@@ -232,7 +232,6 @@ while cutfound:
         sub.optimize()
 
         assert sub.status == GRB.Status.OPTIMAL
-
         # Display info, compute Benders cut, display, add to master
         # print 'sub[', k, '] objval = ', sub.objVal
         # for c in Cset:
