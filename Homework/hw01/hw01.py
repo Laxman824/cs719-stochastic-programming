@@ -17,8 +17,8 @@ from gurobipy import *
 # import os
 # os.chdir("/Users/shenzhenyuan/PycharmProjects/cs719/Homework/hw01")
 
-# dfile = open('nd1041015.pdat','r')
-dfile = open('nd1510203000.pdat','r')
+dfile = open('nd1041015.pdat','r')
+# dfile = open('nd1510203000.pdat','r')
 
 Fset = cPickle.load(dfile)  # set of facilities (list of strings)
 Hset = cPickle.load(dfile)  # set of warehouses (list of strings)
