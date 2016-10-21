@@ -234,11 +234,7 @@ class hw02q3:
         :param lamb: lambda (0.2929 by default)
         :return:
         '''
-        # moveAmount = {}
-        # for arc in self.AllArcs:
-        #     moveAmount[arc] = 0.0
-        #
-        # buyAmount = {}
+
         nunit = {}
         for b in self.B:
             nunit[b] = self.init[b]
