@@ -9,9 +9,10 @@ class hw02q4:
         self.M = 15 # number of batches
         self.n = 50 # number of scenarios
         self.n1 = 50 # number of sample size
-        self.expUB = 200 # upper bound of expansion(to make the 1st stage feasible region compact)
+        self.expUB = 200.0 # upper bound of expansion(to make the 1st stage feasible region compact)
         self.N = 1000 # number of samples for estimation
         self.tvalue_14 = 2.145
+        self.tvalue_14_oneside = 1.761
         self.tvalue_1000 = 1.962 # should use tvalue_999 however.
 
     def read_data(self, fileName="nd848.pdat"):
@@ -117,6 +118,23 @@ class hw02q4:
         candidate = {}
         for arc in self.AllArcs:
             candidate[arc] = arcExpAmount[arc].x
+
+        # print('EXPECTED COST : %g' % m.objVal)
+        # print('SOLUTION:')
+        # for k in range(nscen):
+        #     print('  Senario: %s' % k)
+        #     for arc in self.AllArcs:
+        #         print('    [%s -> %s] (Transport, Current, Expanded) = (%g, %g, %g)'
+        #               % (arc[0], arc[1],
+        #                  transport[arc[0], arc[1], k].x,
+        #                  arcExpAmount[arc[0], arc[1]].x,
+        #                  self.curArcCap[arc]))
+        # print('  AVERAGE UNMET DEMAND:')
+        # for c in self.Cset:
+        #     avgunmet = quicksum(unmet[c,s].x for s in range(nscen))/nscen
+        #     print('   Customer %s: %g' % (c, avgunmet.getValue()))
+
+
         return [m.objval, candidate]
 
     def solveSSP(self, arcExp, sampledDemScens):
@@ -198,6 +216,7 @@ class hw02q4:
 
         # compute upper bound Ef(\hat{x}, \ksi)
         candArcExp = arcExpansion[objvals.argmin()]
+
         evalvals = np.zeros([self.N, 1])
         for k in range(self.N):
             samples = {}
@@ -257,7 +276,7 @@ class hw02q4:
             gapvals[k] = np.mean(curvals) - sampleopt
         print('\n-------------------------- directly estimates optimality gap ------------------------------')
         print 'mean gap estimate = ', np.mean(gapvals)
-        print '95% c.i. on gap = [0, ', np.mean(gapvals) + np.std(gapvals)/math.sqrt(self.M)*self.tvalue_14, ']'
+        print '95% c.i. on gap = [0, ', np.mean(gapvals) + np.std(gapvals)/math.sqrt(self.M)*self.tvalue_14_oneside, ']'
 
         # Also estimate the objective value of the candidate solution using an independent sample of size N = 1000.
         evalvals = np.zeros([self.N, 1])
@@ -272,7 +291,7 @@ class hw02q4:
                           + self.solveSSP(candArcExp, samples)
         ubmean = np.mean(evalvals)
         ubwidth = np.std(evalvals) / math.sqrt(self.N) * self.tvalue_1000
-        print 'ci on upper bound = [', ubmean - ubwidth, ',', ubmean + ubwidth, ']'
+        print '95% c.i. on objective value = [', ubmean - ubwidth, ',', ubmean + ubwidth, ']'
 
 if __name__ == "__main__":
     mysolver = hw02q4()
