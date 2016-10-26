@@ -107,6 +107,5 @@ for k in range(numbatch):
     gapvals[k] = numpy.mean(curvals) - sampleopt 
 
 print 'mean gap estimate = ', numpy.mean(gapvals)
-print '95% c.i. on gap = [0, ', numpy.mean(gapvals) + numpy.std(gapvals)/math.sqrt(numbatch)*2.145, ']'
-
+print '95% c.i. on gap = [0, ', numpy.mean(gapvals) + numpy.std(gapvals)/math.sqrt(numbatch)*1.761, ']'
 
