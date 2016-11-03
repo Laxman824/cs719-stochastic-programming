@@ -255,3 +255,6 @@ Iteration    Objective       Primal Inf.    Dual Inf.      Time
 
 Solved in 1 iterations and 0.00 seconds
 Optimal objective  1.420000000e+02
+
+Gurobi 6.5.2 (mac64) logging started Mon Oct 31 11:41:05 2016
+
