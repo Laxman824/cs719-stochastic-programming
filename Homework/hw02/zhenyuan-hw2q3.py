@@ -125,7 +125,7 @@ class hw02q3:
         sub.update()
 
         ''' Subproblem's constraints '''
-        # Capacity constraints (sum_fk {y_bfk} <= I_b + sum_j c_jb z_jb)
+        # Capacity constraints (sum_f {y_bfk} <= V_b)
         capcon = {}
         for b in self.B:
             capcon[b] = sub.addConstr(
@@ -289,7 +289,7 @@ class hw02q3:
         sub.update()
 
         ''' Subproblem's constraints '''
-        # Capacity constraints (sum_fk {y_bfk} <= I_b + sum_j c_jb z_jb)
+        # Capacity constraints (sum_f {y_bfk} <= V_b)
         capcon = {}
         for b in self.B:
             capcon[b] = sub.addConstr(
@@ -312,7 +312,7 @@ class hw02q3:
             print '--- Iteration ', iter, ' ---'
             iter = iter + 1
             for b in self.B:
-                capcon[b].RHS = nunit[b]
+                capcon[b].RHS = nunit[b]  # nunit[b] is the # units at location b for t-th iteration, update iteratively.
             Q = 0
             rhs = 0.0
             xzcoef = {}
@@ -351,7 +351,8 @@ class hw02q3:
 
             fxt.append(Q/float(self.nscen))
 
-            # compute z_lb
+            ## compute z_lb
+            # add one cut to m_t: \theta >= \pi_cap * v + \pi_dem * d; note that v = init + x + z_in - z_out (v is intermediate var)
             master.addConstr(
                 theta - 1.0 / self.nscen * quicksum(
                     xzcoef[k, b] * (
@@ -372,7 +373,7 @@ class hw02q3:
 
             assert zlb == theta.x
 
-            # compute z_ub
+            ## compute z_ub
             zub = min(fxt)
             print("    [lowerBound, upperBound] = [%f, %f]" % (zlb, zub))
             if zub > zlb + 0.000001:
