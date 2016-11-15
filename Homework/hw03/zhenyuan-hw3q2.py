@@ -7,12 +7,12 @@ class hw03q2:
         self.avarweight = 0.5
         self.alpha = 0.95
 
-    def read_data(self, fileName="nd848.pdat"):
+    def read_data(self, fileName="nd151020500.pdat"):
         ### Read data from file you choose: commont/uncomment to choose the different files
         ### This file was generated from a separate python file, using the `cPickle' module
         ### This is just for convenience -- data can be read in many ways in Python
 
-        dfile = open('nd151020500.pdat','r')  # 'nd15-10-20-500.pdat'
+        dfile = open(fileName,'r')  # 'nd15-10-20-500.pdat'
 
         self.Fset = cPickle.load(dfile)  # set of facilities (list of strings)
         self.Hset = cPickle.load(dfile)  # set of warehouses (list of strings)
