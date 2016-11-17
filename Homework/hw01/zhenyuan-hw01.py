@@ -69,14 +69,14 @@ arcExpAmount = {}
 for arc in AllArcs:
     arcExpAmount[arc]=m.addVar(obj=arcExpCost[arc], name='Expansion_%s_%s' % (arc[0], arc[1]))
 
-# Second stage vars, unmet demands (z_jk)
+# Second stage vars, unmet demands (y_ck)
 nscen = len(Sset)
 unmet = {}
 for c in Cset:
     for k in Sset:
         unmet[c,k] = m.addVar(obj=float(unmetCost[c])/nscen, name='Unmet_%s_%s' % (c,k))
 
-# Intermediate vars, transport
+# Intermediate vars, transport (z_ijk)
 transport = {}
 for arc in AllArcs:
     for k in Sset:
@@ -87,26 +87,25 @@ m.update()
 
 
 ''' Constraints '''
-# Production constraints (sum_h {x_fhk} - b_f <= 0)
+# Production constraints (sum_h {z_fhk} - b_f <= 0)
 for f in Fset:
     for k in Sset:
         m.addConstr(
-            quicksum(transport[f,h,k] for h in Hset) <= facCap[f], name='Capacity_%s' % (f))
+            quicksum(transport[f,h,k] for h in Hset) <= facCap[f], name='Capacity_%s_%s' % (f,k))
 
-# Demand constraints (sum_i {y_ijk} + z_jk = d_jk)
+# Demand constraints (sum_h {z_hck} + y_ck = d_ck)
 for c in Cset:
     for k in Sset:
         m.addConstr(
             quicksum(transport[h,c,k] for h in Hset) + unmet[c,k] == demScens[(c,k)],name='Demand_%s_%s' % (c,k))
 
-
-# Line capacity constraints
+# Line capacity constraints (z_ijk <= x_ij + u_ij)
 for arc in AllArcs:
     for k in Sset:
         m.addConstr(transport[arc[0], arc[1], k] <= curArcCap[arc] + arcExpAmount[arc],
                     name='LineCapacity_%s_%s_%s' % (arc[0], arc[1], k))
 
-# Transportation contraints
+# Transportation contraints (sum_f {z_fhk} >= sum_c {z_hck})
 for h in Hset:
     for k in Sset:
         m.addConstr(

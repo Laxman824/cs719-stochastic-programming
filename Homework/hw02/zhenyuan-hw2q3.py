@@ -198,7 +198,8 @@ class hw02q3:
 
                 for b in self.B:
                     xzcoef[k, b] = capcon[b].Pi
-                    rhs += xzcoef[k,b] * self.init[b]
+                    rhs += xzcoef[k, b] * (self.init[b] + buyAmount_mp[b] + quicksum(moveAmount_mp[arc] for arc in self.AllArcs.select('*', b))
+                                        - quicksum(moveAmount_mp[arc] for arc in self.AllArcs.select(b, '*')))
 
                 for f in self.F:
                     if (k, f) in self.SFkeys:
@@ -209,11 +210,7 @@ class hw02q3:
             ub = Q/float(self.nscen)
             print("    [lowerBound, upperBound] = [%f, %f],  nCut = %d" % (lb, ub, nCuts))
             if ub > lb + 0.000001:  ### violation tolerance
-                master.addConstr(
-                    theta - 1.0/self.nscen * quicksum(
-                        xzcoef[k, b] * (buyAmount_mp[b] + quicksum(moveAmount_mp[arc] for arc in self.AllArcs.select('*', b))
-                                        - quicksum(moveAmount_mp[arc] for arc in self.AllArcs.select(b, '*')))
-                                     for (k,b) in xzcoef) >= rhs/float(self.nscen))
+                master.addConstr(theta >= rhs/float(self.nscen))
                 nCuts += 1
                 cutfound = 1
 
