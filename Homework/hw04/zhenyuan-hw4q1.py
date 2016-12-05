@@ -47,7 +47,6 @@ class hw04q1:
         m.update()
 
         ''' constraints '''
-        demCon = {}
         for i in self.D:
             for s in self.K:
                 m.addConstr(
@@ -133,46 +132,40 @@ class hw04q1:
     def evalSol(self, soln, sample):
         ''' Evaluate the feasibility probability of the candidate solution '''
         x = soln[0]
-        prob = np.zeros([self.M, 1])
-        nInfeasible = 0.0
-        feasible = True
+        nFeasible = 0.0
 
         ''' variables '''
         m = Model("MIP model")
         m.params.logtoconsole = 0
         z = {}
         for i in self.D:
-            for k in range(self.N):
-                z[i, k] = m.addVar(obj=0.0, name='eff_nurse_%s_%s' % (i, k))
+            z[i] = m.addVar(obj=0.0, name='eff_nurse_%s' % (i))
 
         y = {}
         for arc in self.arc:
-            for k in self.K:
-                y[arc, k] = m.addVar(obj=0.0, name='move_%s_%s_%s' % (arc[0], arc[1], k))
+            y[arc] = m.addVar(obj=0.0, name='move_%s_%s' % (arc[0], arc[1]))
 
         m.modelSense = GRB.MINIMIZE
         m.update()
 
         ''' constraints '''
         for i in self.D:
-            for k in self.K:
-                m.addConstr(
-                    x[i].x - quicksum(y[arc, k] for arc in self.arc.select(i, '*')) + 1 / 1.2 * quicksum(
-                        y[arc, k] for arc in self.arc.select('*', i)) == z[i, k],
-                    name='nurse conservation')
-                m.addConstr(12 * z[i, k] >= self.a[i] * sample[i][k], name="demand constraint")
-        m.update()
-        m.optimize()
-        assert m.status == GRB.Status.OPTIMAL
-
-
-
-        for k in self.K: # traverse self.N scenarios
+            m.addConstr(
+                x[i] - quicksum(y[arc] for arc in self.arc.select(i, '*')) + 1 / 1.2 * quicksum(
+                    y[arc] for arc in self.arc.select('*', i)) == z[i], name='nurse conservation')
+        for k in self.K:
+            demConstr = {}
             for i in self.D:
-                if self.a[i] * sample[i][k] > 12*z[i, solId] + 0.000001:
-                    nInfeasible += 1
-                    break
-        return 1- nInfeasible/self.N
+                demConstr[i] = m.addConstr(12 * z[i] >= self.a[i] * sample[i][k], name="demand constraint")
+            m.update()
+            m.optimize()
+            for i in self.D:
+                m.remove(demConstr[i])
+            m.update()
+            if m.status == GRB.Status.OPTIMAL:
+                nFeasible += 1
+
+        return nFeasible/self.N
 
     def solve(self):
         ## sampling
