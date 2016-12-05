@@ -132,8 +132,7 @@ class hw04q1:
     def evalSol(self, soln, sample):
         ''' Evaluate the feasibility probability of the candidate solution '''
         x = soln[0]
-        nFeasible = 0.0
-
+        prob = np.zeros([self.M, 1])
         ''' variables '''
         m = Model("MIP model")
         m.params.logtoconsole = 0
@@ -153,19 +152,22 @@ class hw04q1:
             m.addConstr(
                 x[i] - quicksum(y[arc] for arc in self.arc.select(i, '*')) + 1 / 1.2 * quicksum(
                     y[arc] for arc in self.arc.select('*', i)) == z[i], name='nurse conservation')
-        for k in self.K:
+        for k in range(self.M):
             demConstr = {}
             for i in self.D:
                 demConstr[i] = m.addConstr(12 * z[i] >= self.a[i] * sample[i][k], name="demand constraint")
             m.update()
             m.optimize()
+            if m.status == GRB.Status.OPTIMAL:
+                prob[k] = 1
             for i in self.D:
                 m.remove(demConstr[i])
             m.update()
-            if m.status == GRB.Status.OPTIMAL:
-                nFeasible += 1
 
-        return nFeasible/self.N
+        meanProb = np.mean(prob)
+        widthProb = np.std(prob) / math.sqrt(self.M) * self.tvalue_inf
+        print 'extimated feasible probability = ', meanProb
+        print '95% ci on feasible probability = [', meanProb - widthProb, ',', meanProb + widthProb, ']'
 
     def solve(self):
         ## sampling
@@ -194,20 +196,15 @@ class hw04q1:
         print '95% ci on lower bound = [', lbmean - lbwidth, ',', lbmean + lbwidth, ']'
 
         ## statistically estimate the chance constraint of the candidate solution
-        samples = {i: np.random.poisson(self.mu[i], (self.M, self.N)) for i in self.D}
-        prob = np.zeros([self.M, 1])
+        sample = {i: np.random.poisson(self.mu[i], (self.M)) for i in self.D}
         solId = np.random.choice(self.N)
-        for m in range(self.M):
-            sample = {i: samples[i][m] for i in samples}
-            sample[2] += 0.2*sample[1]
-            sample[3] += 0.2*sample[1] + 0.1*sample[2]
-            sample[4] += 0.3*sample[1] + 0.6*sample[2] + 0.2*sample[3]
 
-            prob[m] = self.evalSol(candSoln, sample)
-        meanProb = np.mean(prob)
-        widthProb = np.std(prob) / math.sqrt(self.M) * self.tvalue_inf
-        print 'extimated feasible probability = ', meanProb
-        print '95% ci on feasible probability = [', meanProb - widthProb, ',', meanProb + widthProb, ']'
+        sample[2] += 0.2*sample[1]
+        sample[3] += 0.2*sample[1] + 0.1*sample[2]
+        sample[4] += 0.3*sample[1] + 0.6*sample[2] + 0.2*sample[3]
+
+        self.evalSol(candSoln, sample)
+
 
 if __name__ == "__main__":
     mysolver = hw04q1()
