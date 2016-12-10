@@ -104,13 +104,14 @@ class hw04q2:
         m.params.logtoconsole = 0
         ''' variables '''
         x = {}; y = {}; z = {}; v = {}
-        # vv = m.addVar(obj=1.0)
+        V = m.addVar(obj=1.0)
         Y = m.addVar()
-
         for s in S:
+            # Vs[s] = m.addVar(obj=1.0 / self.Nscen)
+            # Ys[s] = m.addVar()
             for t in T:
+                # v[s, t] = m.addVar(obj=1.0)
                 y[s, t] = m.addVar()
-                v[s, t] = m.addVar(obj=1.0/self.Nscen)
                 for c in self.classes:
                     x[c, s, t] = m.addVar()
                     z[c, s, t] = m.addVar()
@@ -137,14 +138,13 @@ class hw04q2:
                     m.addConstr(z[4, s, t] == (1-xi) * (z[3, s, t-1]+z[4, s, t-1]) - x[4, s, t])
 
                 m.addConstr(y[s, t] == quicksum(self.yields[c] * x[c, s, t] for c in self.classes))
-                m.addConstr(v[s, t] <= 10*y[s, t])
-                m.addConstr(v[s, t] <= 10*98e6 + 7*(y[s, t]-98e6))
-                m.addConstr(v[s, t] <= 10*98e6 + 49e6 + 5*(y[s, t]-105e6))
-
-        m.addConstr(Y == quicksum(y[s, t] for s in S for t in T))
-        # m.addConstr(vv <= 10*Y)
-        # m.addConstr(vv <= 10*98e6 + 7*(Y-98e6))
-        # m.addConstr(vv <= 10*98e6 + 49e6 + 5*(Y-105e6))
+                # m.addConstr(v[s, t] <= 10*y[s, t])
+                # m.addConstr(v[s, t] <= 10*98e6 + 7*(y[s, t]-98e6))
+                # m.addConstr(v[s, t] <= 10*98e6 + 49e6 + 5*(y[s, t]-105e6))
+        m.addConstr(Y == 1.0/self.Nscen * quicksum(y[s, t] for s in S for t in T))
+        m.addConstr(V <= 10*Y)
+        m.addConstr(V <= 10*98e6 + 7*(Y-98e6))
+        m.addConstr(V <= 10*98e6 + 49e6 + 5*(Y-105e6))
 
         ## Nonanticipativity constraints
         for i in self.Nodes:
@@ -168,10 +168,10 @@ class hw04q2:
         m.params.logtoconsole = 0
         ''' variables '''
         x = {}; y = {}; z = {}; v = {}
-        # vv = m.addVar(obj=1.0)
+        V = m.addVar(obj=1.0)
         Y = m.addVar()
         for i in self.Nodes:
-            v[i] = m.addVar(obj=1.0/len(self.StageNodes[self.NodeStage[i]]), name='profit_%s' % (i))
+            # v[i] = m.addVar(obj=1.0/len(self.StageNodes[self.NodeStage[i]]), name='profit_%s' % (i))
             y[i] = m.addVar(name='yield_%s' % (i))
             for c in self.classes:
                 x[c, i] = m.addVar(name='harvest_acre_%s_%s' % (c, i))
@@ -199,14 +199,14 @@ class hw04q2:
                 m.addConstr(z[4, i] == (1 - xi) * (z[3, ancestor] + z[4, ancestor]) - x[4, i], name='z_4_{}'.format(i))
 
             m.addConstr(y[i] == quicksum(self.yields[c] * x[c, i] for c in self.classes), name='y_{}'.format(i))
-            m.addConstr(v[i] <= 10*y[i], name='v1_{}'.format(i))
+            # m.addConstr(v[i] <= 10*y[i], name='v1_{}'.format(i))
             # m.addConstr(v[i] <= 10*98e6 + 7*(y[i]-98e6), name='v2_{}'.format(i))
             # m.addConstr(v[i] <= 10*98e6 + 49e6 + 5*(y[i]-105e6), name='v3_{}'.format(i))
 
-        m.addConstr(Y == quicksum(y[i] for i in self.Nodes))
-        # m.addConstr(vv <= 10 * Y)
-        # m.addConstr(vv <= 10 * 98e6 + 7 * (Y - 98e6))
-        # m.addConstr(vv <= 10 * 98e6 + 49e6 + 5 * (Y - 105e6))
+        m.addConstr(Y == quicksum(1.0/len(self.StageNodes[self.NodeStage[i]])*y[i] for i in self.Nodes))
+        m.addConstr(V <= 10 * Y)
+        m.addConstr(V <= 10 * 98e6 + 7 * (Y - 98e6))
+        m.addConstr(V <= 10 * 98e6 + 49e6 + 5 * (Y - 105e6))
 
         m.update()
         m.optimize()
