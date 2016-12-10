@@ -9,7 +9,6 @@ class hw04q2:
         self.T = 5  ## (Number of stages)
         self.fracoutcomes = [0.05, 0.1, 0.15]  ## set of possible fraction destroyed outcomes in each period
         self.classes = [1,2,3,4]
-        self.initArea = {1:8000, 2:10000, 3:20000, 4:60000}
         self.yields = {1:0, 2:250, 3:510, 4:710}
 
         ### The following code builds data structures for representing the scenario tree
@@ -57,18 +56,8 @@ class hw04q2:
 
                     self.NodeParent[self.curnodeid] = n
 
-        ### The following recursively defined function gets all leaf nodes (which correspond to scenarios) that originate from a node n
-        def getLeafs(n):
-            if self.NodeStage[n] == self.T:
-                return [n]
-            else:
-                tmp = []
-                for c in self.NodeChildren[n]:
-                    tmp += getLeafs(c)
-                return tmp
-
         ### The full set of scenarios corresponds to the set of node indices that are Leafs in the tree from node 1
-        self.Scens = getLeafs(1)
+        self.Scens = self.getLeafs(1)
 
         ### Let's see what we have!
 
@@ -87,61 +76,145 @@ class hw04q2:
         ## as an example, let's pick out node 3 and look at key information:
         print("Node 3 time stage: %d" % self.NodeStage[3])
         print("Node 3 scenarios that share this same history:")
-        print(getLeafs(3))
+        print(self.getLeafs(3))
 
-    def solveNodeForm(self):
+    def getLeafs(self, n):
         '''
-        solve the multi-stage stochastic programming w/ node-based formulation
+        The following recursively defined function gets all leaf nodes (which correspond to scenarios) that originate from a node n
         :return:
         '''
-
-        m = Model("Node Form")
-        m.params.logtoconsole = 0
-        ''' variables '''
-        x = {}; y = {}; z = {}; v = {}
-        for i in self.Nodes:
-            v[i] = m.addVar(obj=1.0, name='profit_%s' % (i))
-            y[i] = m.addVar(name='yield_%s' % (i))
-            for c in self.classes:
-                x[c,i] = m.addVar(name='harvest_acre_%s_%s' % (c, i))
-                z[c,i] = m.addVar(name='left_acre_%s_%s' % (c, i))
-
-        m.modelSense = GRB.MAXIMIZE
-        m.update()
-
-        ''' constraints '''
-        for i in self.Nodes:
-            if i == self.Nodes[0]:
-                ## z_1
-                for c in self.classes:
-                    m.addConstr(z[c, i] == self.initArea[c] - x[c, i], name='z_{}_{}'.format(c,i))
-            else:
-                ## z_i
-                ancestor = self.NodeParent[i]
-                xi = self.NodeFracHist[i][-1]
-                m.addConstr(z[1,i] == xi*(quicksum(z[c,ancestor] for c in self.classes))
-                            + x[2,i] + x[3,i] + x[4,i], name='z_1_{}'.format(i))
-                m.addConstr(z[2,i] == (1-xi) * z[1,ancestor] - x[2,i], name='z_2_{}'.format(i))
-                m.addConstr(z[2,i] == (1-xi) * z[2,ancestor] - x[3,i], name='z_3_{}'.format(i))
-                m.addConstr(z[2,i] == (1-xi) * (z[3,ancestor]+z[4,ancestor]) - x[4,i], name='z_4_{}'.format(i))
-
-            m.addConstr(y[i] == quicksum(self.yields[c] * x[c,i] for c in self.classes), name='y_{}'.format(i))
-            m.addConstr(v[i] <= 10*y[i], name='v1_{}'.format(i))
-            m.addConstr(v[i] <= 10*98e6 + 7*(y[i]-98e6), name='v2_{}'.format(i))
-            m.addConstr(v[i] <= 10*98e6 + 49e6 + 5*(y[i]-105e6), name='v3_{}'.format(i))
-
-        m.update()
-        m.optimize()
-        assert m.status == GRB.Status.OPTIMAL
-        print("Expected Income = ", m.objVal)
+        if self.NodeStage[n] == self.T:
+            return [n]
+        else:
+            tmp = []
+            for c in self.NodeChildren[n]:
+                tmp += self.getLeafs(c)
+            return tmp
 
     def solveScenForm(self):
         '''
         solve the multi-stage stochastic programming w/ scenario-based formulation
         :return:
         '''
-        pass
+        S = range(1, 1+self.Nscen)
+        T = range(1, 1+self.T)
+        minScenId = min(self.Scens)
+
+        m = Model("Scenario Form")
+        m.params.logtoconsole = 0
+        ''' variables '''
+        x = {}; y = {}; z = {}; v = {}
+        # vv = m.addVar(obj=1.0)
+        Y = m.addVar()
+
+        for s in S:
+            for t in T:
+                y[s, t] = m.addVar()
+                v[s, t] = m.addVar(obj=1.0/self.Nscen)
+                for c in self.classes:
+                    x[c, s, t] = m.addVar()
+                    z[c, s, t] = m.addVar()
+
+        m.modelSense = GRB.MAXIMIZE
+        m.update()
+
+        ''' constraints '''
+        for s in S:
+            for t in T:
+                if t == 1:
+                    ## z_1
+                    m.addConstr(z[1, s, 1] == 8000 + x[2, s, 1] + x[3, s, 1] + x[4, s, 1])
+                    m.addConstr(z[2, s, 1] == 10000 - x[2, s, 1])
+                    m.addConstr(z[3, s, 1] == 20000 - x[3, s, 1])
+                    m.addConstr(z[4, s, 1] == 60000 - x[4, s, 1])
+                else:
+                    ## z_i
+                    xi = self.NodeFracHist[self.Scens[s-1]][t-1]
+
+                    m.addConstr(z[1, s, t] == xi * (quicksum(z[c, s, t-1] for c in self.classes)) + x[2, s, t] + x[3, s, t] + x[4, s, t])
+                    m.addConstr(z[2, s, t] == (1-xi) * z[1, s, t-1] - x[2, s, t])
+                    m.addConstr(z[3, s, t] == (1-xi) * z[2, s, t-1] - x[3, s, t])
+                    m.addConstr(z[4, s, t] == (1-xi) * (z[3, s, t-1]+z[4, s, t-1]) - x[4, s, t])
+
+                m.addConstr(y[s, t] == quicksum(self.yields[c] * x[c, s, t] for c in self.classes))
+                m.addConstr(v[s, t] <= 10*y[s, t])
+                m.addConstr(v[s, t] <= 10*98e6 + 7*(y[s, t]-98e6))
+                m.addConstr(v[s, t] <= 10*98e6 + 49e6 + 5*(y[s, t]-105e6))
+
+        m.addConstr(Y == quicksum(y[s, t] for s in S for t in T))
+        # m.addConstr(vv <= 10*Y)
+        # m.addConstr(vv <= 10*98e6 + 7*(Y-98e6))
+        # m.addConstr(vv <= 10*98e6 + 49e6 + 5*(Y-105e6))
+
+        ## Nonanticipativity constraints
+        for i in self.Nodes:
+            t = self.NodeStage[i]
+            Sn = map(lambda i: i-min(self.Scens), self.getLeafs(i))
+            for s in Sn:
+                for c in self.classes:
+                    m.addConstr(self.Nscen/3**(t-1) * x[c,s+1,t] == quicksum(x[c, ss+1, t] for ss in Sn), name="Nonanticipativity")
+        m.update()
+        m.optimize()
+        print Y
+        assert m.status == GRB.Status.OPTIMAL
+        print("Expected Income = ", m.objVal)
+
+    def solveNodeForm(self):
+        '''
+        solve the multi-stage stochastic programming w/ node-based formulation
+        :return:
+        '''
+        m = Model("Node Form")
+        m.params.logtoconsole = 0
+        ''' variables '''
+        x = {}; y = {}; z = {}; v = {}
+        # vv = m.addVar(obj=1.0)
+        Y = m.addVar()
+        for i in self.Nodes:
+            v[i] = m.addVar(obj=1.0/len(self.StageNodes[self.NodeStage[i]]), name='profit_%s' % (i))
+            y[i] = m.addVar(name='yield_%s' % (i))
+            for c in self.classes:
+                x[c, i] = m.addVar(name='harvest_acre_%s_%s' % (c, i))
+                z[c, i] = m.addVar(name='left_acre_%s_%s' % (c, i))
+
+        m.modelSense = GRB.MAXIMIZE
+        m.update()
+
+        ''' constraints '''
+        for i in self.Nodes:
+            if i == 1:
+                ## z_1
+                m.addConstr(z[1, 1] == 8000 + x[2, 1] + x[3, 1] + x[4, 1], name='z_1_{}'.format(i))
+                m.addConstr(z[2, 1] == 10000 - x[2, 1], name='z_2_{}'.format(i))
+                m.addConstr(z[3, 1] == 20000 - x[3, 1], name='z_3_{}'.format(i))
+                m.addConstr(z[4, 1] == 60000 - x[4, 1], name='z_4_{}'.format(i))
+            else:
+                ## z_i
+                ancestor = self.NodeParent[i]
+                xi = self.NodeFracHist[i][-1]
+                m.addConstr(z[1, i] == xi * (quicksum(z[c, ancestor] for c in self.classes))
+                            + x[2, i] + x[3, i] + x[4, i], name='z_1_{}'.format(i))
+                m.addConstr(z[2, i] == (1 - xi) * z[1, ancestor] - x[2, i], name='z_2_{}'.format(i))
+                m.addConstr(z[3, i] == (1 - xi) * z[2, ancestor] - x[3, i], name='z_3_{}'.format(i))
+                m.addConstr(z[4, i] == (1 - xi) * (z[3, ancestor] + z[4, ancestor]) - x[4, i], name='z_4_{}'.format(i))
+
+            m.addConstr(y[i] == quicksum(self.yields[c] * x[c, i] for c in self.classes), name='y_{}'.format(i))
+            m.addConstr(v[i] <= 10*y[i], name='v1_{}'.format(i))
+            # m.addConstr(v[i] <= 10*98e6 + 7*(y[i]-98e6), name='v2_{}'.format(i))
+            # m.addConstr(v[i] <= 10*98e6 + 49e6 + 5*(y[i]-105e6), name='v3_{}'.format(i))
+
+        m.addConstr(Y == quicksum(y[i] for i in self.Nodes))
+        # m.addConstr(vv <= 10 * Y)
+        # m.addConstr(vv <= 10 * 98e6 + 7 * (Y - 98e6))
+        # m.addConstr(vv <= 10 * 98e6 + 49e6 + 5 * (Y - 105e6))
+
+        m.update()
+        m.optimize()
+        print Y
+        assert m.status == GRB.Status.OPTIMAL
+        print("Expected Income = ", m.objVal)
 
 if __name__ == "__main__":
     mysolver = hw04q2()
     mysolver.solveNodeForm()
+    mysolver.solveScenForm()
