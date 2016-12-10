@@ -121,7 +121,7 @@ class hw04q2:
             for t in T:
                 if t == 1:
                     ## z_1
-                    m.addConstr(z[1, s, 1] == 8000 + x[2, s, 1] + x[3, s, 1] + x[4, s, 1])
+                    m.addConstr(z[1, s, 1] == 8000)
                     m.addConstr(z[2, s, 1] == 10000 - x[2, s, 1])
                     m.addConstr(z[3, s, 1] == 20000 - x[3, s, 1])
                     m.addConstr(z[4, s, 1] == 60000 - x[4, s, 1])
@@ -129,7 +129,7 @@ class hw04q2:
                     ## z_i
                     xi = self.NodeFracHist[self.Scens[s-1]][t-1]
 
-                    m.addConstr(z[1, s, t] == xi * (quicksum(z[c, s, t-1] for c in self.classes)) + x[2, s, t] + x[3, s, t] + x[4, s, t])
+                    m.addConstr(z[1, s, t] == xi * (quicksum(z[c, s, t-1] for c in self.classes)) + x[2, s, t-1] + x[3, s, t-1] + x[4, s, t-1])
                     m.addConstr(z[2, s, t] == (1-xi) * z[1, s, t-1] - x[2, s, t])
                     m.addConstr(z[3, s, t] == (1-xi) * z[2, s, t-1] - x[3, s, t])
                     m.addConstr(z[4, s, t] == (1-xi) * (z[3, s, t-1]+z[4, s, t-1]) - x[4, s, t])
@@ -152,9 +152,15 @@ class hw04q2:
                     m.addConstr(self.Nscen/3**(t-1) * x[c,s+1,t] == quicksum(x[c, ss+1, t] for ss in Sn), name="Nonanticipativity")
         m.update()
         m.optimize()
-        print Y
         assert m.status == GRB.Status.OPTIMAL
-        print("Expected Income = ", m.objVal)
+        print('\n-------------------------- Scenario-based Formulation ------------------------------')
+        for t in T:
+            for c in self.classes:
+                print "x[{},28,{}] = ".format(c, t), x[c, 28, t].x
+                print "z[{},28,{}] = ".format(c, t), z[c, 28, t].x
+        print "Total yields = ", Y.x
+        print "Expected Income = ", m.objVal
+
 
     def solveNodeForm(self):
         '''
@@ -181,7 +187,7 @@ class hw04q2:
         for i in self.Nodes:
             if i == 1:
                 ## z_1
-                m.addConstr(z[1, 1] == 8000 + x[2, 1] + x[3, 1] + x[4, 1], name='z_1_{}'.format(i))
+                m.addConstr(z[1, 1] == 8000, name='z_1_{}'.format(i))
                 m.addConstr(z[2, 1] == 10000 - x[2, 1], name='z_2_{}'.format(i))
                 m.addConstr(z[3, 1] == 20000 - x[3, 1], name='z_3_{}'.format(i))
                 m.addConstr(z[4, 1] == 60000 - x[4, 1], name='z_4_{}'.format(i))
@@ -190,7 +196,7 @@ class hw04q2:
                 ancestor = self.NodeParent[i]
                 xi = self.NodeFracHist[i][-1]
                 m.addConstr(z[1, i] == xi * (quicksum(z[c, ancestor] for c in self.classes))
-                            + x[2, i] + x[3, i] + x[4, i], name='z_1_{}'.format(i))
+                            + x[2, ancestor] + x[3, ancestor] + x[4, ancestor], name='z_1_{}'.format(i))
                 m.addConstr(z[2, i] == (1 - xi) * z[1, ancestor] - x[2, i], name='z_2_{}'.format(i))
                 m.addConstr(z[3, i] == (1 - xi) * z[2, ancestor] - x[3, i], name='z_3_{}'.format(i))
                 m.addConstr(z[4, i] == (1 - xi) * (z[3, ancestor] + z[4, ancestor]) - x[4, i], name='z_4_{}'.format(i))
@@ -207,9 +213,14 @@ class hw04q2:
 
         m.update()
         m.optimize()
-        print Y
         assert m.status == GRB.Status.OPTIMAL
-        print("Expected Income = ", m.objVal)
+        print('\n-------------------------- Node-based Formulation ------------------------------')
+        for t in range(1, self.T + 1):
+            for c in self.classes:
+                print "x[{},{}] = ".format(c, self.StageNodes[t][0]), x[c,self.StageNodes[t][0]].x
+                print "z[{},{}] = ".format(c, self.StageNodes[t][0]), z[c, self.StageNodes[t][0]].x
+        print "Total yields = ", Y.x
+        print "Expected Income = ", m.objVal
 
 if __name__ == "__main__":
     mysolver = hw04q2()
