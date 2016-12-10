@@ -98,7 +98,6 @@ class hw04q2:
         '''
         S = range(1, 1+self.Nscen)
         T = range(1, 1+self.T)
-        minScenId = min(self.Scens)
 
         m = Model("Scenario Form")
         m.params.logtoconsole = 0
@@ -107,10 +106,8 @@ class hw04q2:
         V = m.addVar(obj=1.0)
         Y = m.addVar()
         for s in S:
-            # Vs[s] = m.addVar(obj=1.0 / self.Nscen)
-            # Ys[s] = m.addVar()
             for t in T:
-                # v[s, t] = m.addVar(obj=1.0)
+                # v[s, t] = m.addVar(obj=1.0 / self.Nscen)
                 y[s, t] = m.addVar()
                 for c in self.classes:
                     x[c, s, t] = m.addVar()
